@@ -4,6 +4,8 @@
 # smll client for raspberry pi
 
 
+import os 
+import sys
 import RPi.GPIO as GPIO
 import sys
 import time
@@ -30,23 +32,38 @@ def ctx_update() :
 	global ctx_interval 
 
 	now = dt.datetime.now()
+	elapsed = (now-last_ctx_updated).seconds 
 
-	sys.stdout.write('*')
+	print "elapsed: %(el)d" % {'el' : elapsed}
 
-	if (now-last_ctx_updated).seconds > ctx_interval :
+	if elapsed > ctx_interval :
 		logging.info("it's time for context update")
 		res = subprocess.call("wget -nc http://smll.herokuapp.com/device/serial/ctx", shell=True)
-		if res == 0 :
-			print "ctx update completed"
-			last_ctx_updated = now
+
+		t_new = 0
+		t_now = 0
+
+		if os.path.isfile("ctx") :
+			t_new = time.ctime(os.path.getctime("ctx"))
+
+		if os.path.isfile("ctx.now") :
+			t_now = time.ctime(os.path.getctime("ctx.now"))
+
+		if t_now != t_new  :
+			print "ctx update"
+			print "copy ctx -> ctx.now"
+			subprocess.call("cp -f ctx ctx.now", shell=True)
 			play_index = 0
 			file_download()
 		else :
-			print "ctx update failed"
+			print "no ctx update"
 			time.sleep(1) #wait before checking again if nothing detected
 
+		# update last updated time
+		last_ctx_updated = now 
+
 def file_download() :
-	lines = tuple(open("./ctx", 'r'))	
+	lines = tuple(open("./ctx.now", 'r'))	
 	for line in lines:
 		res = subprocess.call("wget -nc http://smll.herokuapp.com/speech/9/"+line, shell=True)
 
